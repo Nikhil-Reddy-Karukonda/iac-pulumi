@@ -81,7 +81,7 @@ const egressRules = allowedEgressPorts.map(port => ({
 }));
 
 const ingressRules = [
-    { protocol: "tcp", fromPort: 22, toPort: 22, cidrBlocks: ["0.0.0.0/0"] },
+    { protocol: "tcp", fromPort: 22, toPort: 22, securityGroups: [lbSecurityGroup.id]},
     { protocol: "tcp", fromPort: 8080, toPort: 8080, securityGroups: [lbSecurityGroup.id] },
 ];
 
@@ -318,24 +318,25 @@ sudo systemctl restart csye6225_webapp
         const instanceProfile = new aws.iam.InstanceProfile(instanceProfileName, {
             role: ec2Role.name,
         });
-        const ec2Instance = await new aws.ec2.Instance(ec2Name, {
-            instanceType: instanceType,
-            ami: imageId,
-            keyName: keyName,
-            subnetId: publicSubnets[0]?.id,
-            vpcSecurityGroupIds: [appSecurityGroup.id],
-            userData: userDataScript,
-            iamInstanceProfile: instanceProfile.name,
-            disableApiTermination: config.getBoolean("disableApiTermination"),
-            rootBlockDevice: {
-                volumeSize: volumeSize!,
-                volumeType: volumeType,
-                deleteOnTermination: deleteOnTermination!,
-            },
-            tags: {
-                Name: ec2Name,
-            },
-        });
+
+        // const ec2Instance = await new aws.ec2.Instance(ec2Name, {
+        //     instanceType: instanceType,
+        //     ami: imageId,
+        //     keyName: keyName,
+        //     subnetId: publicSubnets[0]?.id,
+        //     vpcSecurityGroupIds: [appSecurityGroup.id],
+        //     userData: userDataScript,
+        //     iamInstanceProfile: instanceProfile.name,
+        //     disableApiTermination: config.getBoolean("disableApiTermination"),
+        //     rootBlockDevice: {
+        //         volumeSize: volumeSize!,
+        //         volumeType: volumeType,
+        //         deleteOnTermination: deleteOnTermination!,
+        //     },
+        //     tags: {
+        //         Name: ec2Name,
+        //     },
+        // });
 
         const userDataEncoded = userDataScript.apply(ud => Buffer.from(ud).toString('base64'));
 
@@ -441,7 +442,7 @@ sudo systemctl restart csye6225_webapp
             actionsEnabled: true
         });
 
-        const publicIp = ec2Instance.publicIp;
+        // const publicIp = ec2Instance.publicIp;
 
         // Application Load Balancer
         const alb = new aws.lb.LoadBalancer("appLoadBalancer", {
