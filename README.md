@@ -52,7 +52,7 @@ This project uses various configurations for AWS, GCP, and other services as spe
 Before you begin, ensure you have the following prerequisites installed on your local machine:
 
 - [Pulumi](https://www.pulumi.com/docs/get-started/install/) - Infrastructure as Code tool.
-- [AWS CLI](https://aws.amazon.com/cli/) - with valid AWS credentials configured.
+- [AWS CLI](https://aws.amazon.com/cli/) - with valid AWS credentials configured. `aws configure --profile (demo/dev)`
 - Install `gcloud` cli and login with `gcloud auth login` and `gcloud auth application-default login`
 
 ## 🚀 Getting Started
@@ -112,10 +112,18 @@ Before you begin, ensure you have the following prerequisites installed on your 
    pulumi config set aws:region us-west-1
    pulumi stack ls
    pulumi stack rm demo
-   pulumi up
-   pulumi refresh
-   pulumi destroy
+   pulumi up --> resources creation
+   pulumi refresh 
+   pulumi destroy --> resources cleanup
 ```
+
+## Web App Database Configuration 🌐
+
+## Steps 🛠️
+
+1. **Pulumi** 🔧: Confirm RDS instance launch via Pulumi IaC.
+2. **Retrieve Info** 📋: Get RDS connection details (hostname, port, DB name).
+3. **App Config** ⚙️: Update web app to connect to RDS instance using user data script on EC2 start up.
 
 📚 Additional Resources
 https://www.pulumi.com/docs/
@@ -126,14 +134,74 @@ https://www.pulumi.com/docs/clouds/aws/
 📜 Import SSL Certificate from local to AWS ACM:
 ```sudo aws acm import-certificate --certificate fileb:///path/to/certificate.crt --certificate-chain fileb:///path/to/certificate.ca-bundle --private-key fileb:///path/to/private.key --profile demo ```
 
+## Application Load Balancer Setup 🌐
+
+Configure an Application Load Balancer for HTTPS traffic management in your web application.
+
+## Load Balancer Configuration 🛠️
+
+1. **Setup Load Balancer** 🔗: Create an Application Load Balancer to handle HTTPS traffic on port 443.
+2. **Target Application Instances** 🎯: Forward traffic to the port where your application listens.
+3. **Security Group** 🔒: Attach the appropriate security group to the load balancer.
+
+## Web App Access & Security 🛡️
+
+Ensure the web application is accessible only through the load balancer.
+
+## Configuration 🚦🔒
+
+- **Exclusive Load Balancer Access**.
+- **Ingress Rules**:
+  - TCP on Port 22 (SSH).
+  - TCP on Application port.
+  - Source: Load balancer's security group.
+- **Restrict Direct Internet Access**.
+
+## Notes 📝
+- **No HTTP Support** ⛔: HTTP to HTTPS redirection not required.
+- **EC2 Instance Access** 🚫: Direct connection to EC2 instances should be blocked.
+
+## Steps 🛠️
+1. **Update Security Group**: Set ingress rules as specified.
+2. **Validate Setup**: Confirm no direct internet access to EC2 instance.
+
+## Secure Application Endpoints 🔐
+
+### Dev Environment
+- Use **AWS Certificate Manager** 📜: Obtain SSL certificates for dev endpoints.
+- **Endpoint Configuration** ⚙️: Apply the SSL certificates to your load balancer.
+
+### Prod Environment
+- **Request SSL Certificate** 📄: Obtain from Namecheap or another vendor (excluding AWS Certificate Manager).
+- **Import Certificate to AWS** 🔑:
+  - Use CLI to import the certificate to AWS Certificate Manager.
+  - Document the import command in README.md.
+- **Apply Certificate** 🛡️: Configure load balancer with the imported certificate.
+
 ## 🌐 Networking with Pulumi
 Pulumi automates the creation of networking resources for your application. Here's what gets set up:
 
-- **Virtual Private Cloud (VPC)**
-- **Internet Gateway**
-- **Route Tables and Routes**
-  - Public Route Table: Associated with all public subnets. Includes an entry for the internet gateway.
-  - Private Route Table: Associated with all private subnets. Does not include an entry for the internet gateway.
+**Virtual Private Cloud (VPC)**
+## AWS VPC Configuration 🌐
+
+Efficiently set up a VPC in AWS with specific rules for subnets and route tables.
+
+## 🌍 Subnet Creation Rules
+- In regions with **3 or more availability zones**:
+  - Create **3 public** and **3 private subnets**.
+  - Ensure **one public** and **one private subnet** in each availability zone.
+- In regions with **less than 3 availability zones**:
+  - Create a number of public and private subnets equal to the number of availability zones.
+  - Place **one public** and **one private subnet** in each availability zone.
+
+## 🚦 Route Table Configuration Rules
+### Public Route Table
+- **Associate** all public subnets to this route table.
+- Ensure there is an **entry for the internet gateway**.
+
+### Private Route Table
+- **Associate** all private subnets to this route table.
+- Ensure there is **NO entry for the internet gateway**.
 - **Amazon RDS Instance**: Deployed in the private subnet and is not accessible over the internet.
 
 ## 🛠️ Extending to Google Cloud
@@ -153,6 +221,51 @@ Pulumi further extends its capabilities to Google Cloud by automating the follow
 ## 📧 SNS Integration and Load Balancer
 - **Amazon SNS Topic**: Pulumi creates the SNS topic. The topic information is then passed to the web application using EC2 user data script (startup script - performs tasks during the startup process of a virtual machine (VM) instance).
 - **Load Balancer**: Utilizes valid SSL certificates for secure communication.
+
+## Amazon Route 53 DNS Configuration 🌍
+
+Set up your domain and subdomains using Amazon Route 53 for DNS services.
+
+## 🏗️ Create Hosted Zone for Domain in Root AWS Account
+
+1. **Create Zone** 🌐: Manually create a public hosted zone for `yourdomainname.tld` in Route 53.
+2. **Configure Registrar** 🔧: Update Namecheap to use Route 53's custom name servers.
+
+## 🛠️ Create Subdomain & Hosted Zone for Dev AWS Account
+
+1. **Create Dev Zone** 🌐: Manually create a public hosted zone for `dev.yourdomainname.tld` in Route 53.
+2. **Set Name Servers** 🔧: Configure name servers for the subdomain in the root account.
+
+## 🚀 Create Subdomain & Hosted Zone for Demo AWS Account
+
+1. **Create Prod Zone** 🌐: Manually create a public hosted zone for `prod.yourdomainname.tld` in Route 53.
+2. **Set Name Servers** 🔧: Configure name servers for the subdomain in the root account.
+
+## Load Testing with Postman Collection Runner 🚀
+
+Use Postman Collection Runner for load testing your application APIs.
+
+## Overview 📊
+
+- **Tool Used**: Postman Collection Runner.
+- **Test Objective**: Simulate roughly 500 concurrent API calls to trigger ASG
+- **Configuration**: Set delay to 0 between requests.
+
+## Steps to Setup and Run Tests 🛠️
+
+1. **Create Test Collection** ✍️:
+   - Develop a collection of API requests in Postman targeting your application.
+   - Organize requests to reflect typical usage scenarios.
+
+2. **Configure Runner Settings** ⚙️:
+   - Set the delay between requests to 0 in Postman Collection Runner.
+   - This configures the runner to simulate concurrent requests.
+
+3. **Running Tests** ▶️:
+   - Open Postman and navigate to the Collection Runner.
+   - Select your prepared test collection.
+   - Start the runner and monitor the results for performance insights.
+
 
 ## Pulumi.demo.yaml Template
 ```config:
@@ -198,12 +311,12 @@ Pulumi further extends its capabilities to Google Cloud by automating the follow
     iac-aws:gcpRegion: us-east1
     iac-aws:gcpServiceAccountRolePermissions: "roles/storage.admin"
     iac-aws:hostedZoneId: 
-    iac-aws:imageId: 
+    iac-aws:imageId: "<custom AMI Image ID>"
     iac-aws:instanceProfileName: "instanceProfile"
     iac-aws:instanceType: t2.micro
     iac-aws:internet_gateway_attachment_name: custom-gw-attachment
     iac-aws:internet_gateway_name: custom-gw
-    iac-aws:keyName:
+    iac-aws:keyName:"<EC2 key pair Name>"
     iac-aws:lambdaFilePath: "../path_to_lambda_code/"
     iac-aws:lambdaIAMRoleCloudwatchPolicyARN: "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
     iac-aws:lambdaIAMRoleDynamoDBPolicyARN: "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess"
